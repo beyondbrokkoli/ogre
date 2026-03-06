@@ -41,18 +41,13 @@ end
 function Board:drawView(viewW, viewH)
     for x = 1, viewW do
         local mapX = x + self.camera.x
-        local column = self.state.storage[mapX]
-
-        if column then
-            for y = 1, viewH do
-                local mapY = y + self.camera.y
-                local cellData = column[mapY]
-
-                if cellData then
-                    -- Efficiency: Pass mapX/Y directly to avoid re-calculation
-                    self:drawCellHighlight(x, y, mapX, mapY)
-                    self:drawItem(cellData, x, y)
-                end
+        for y = 1, viewH do
+            local mapY = y + self.camera.y
+            local cellData = self.state:get( {x = mapX, y = mapY} )
+            if cellData then
+                -- Efficiency: Pass mapX/Y directly to avoid re-calculation
+                self:drawCellHighlight(x, y, mapX, mapY)
+                self:drawItem(cellData, x, y)
             end
         end
     end
@@ -87,11 +82,34 @@ function Board:old_drawCellHighlight(sx, sy, wx, wy)
         love.graphics.setColor(1, 1, 1, 1) -- Reset
     end
 end
--- In display/board.lua
 
-function Board:drawCellHighlight(sx, sy, wx, wy)
+-- a bit newer drawCellHighlight retained for reference
+function Board:not_quite_there_drawCellHighlight(sx, sy, wx, wy)
     local cell = self.state.storage[wx][wy]
 
+    -- 1. Check if the mouse is currently hovering over THIS world tile
+    local isHovered = (wx == Mouse.hover.x and wy == Mouse.hover.y)
+
+    -- 2. Draw if active OR hovered
+    if (cell and cell.active) or isHovered then
+        local dX = math.floor(self.bX + (sx - 1) * self.squareSize)
+        local dY = math.floor(self.bY + (sy - 1) * self.squareSize)
+
+        if isHovered and not (cell and cell.active) then
+            love.graphics.setColor(1, 1, 1, 0.2) -- Subtle white for hover
+        else
+            love.graphics.setColor(0.2, 0.6, 1, 0.5) -- Industrial Blue for active
+        end
+
+        love.graphics.rectangle("fill", dX, dY, self.squareSize, self.squareSize)
+        love.graphics.setColor(1, 1, 1, 1) -- Always reset!
+    end
+end
+
+function Board:drawCellHighlight(sx, sy, wx, wy)
+    -- Use the handle to get the cell
+    local cell = self.state:get({x = wx, y = wy})
+    -- ... rest of your logic
     -- 1. Check if the mouse is currently hovering over THIS world tile
     local isHovered = (wx == Mouse.hover.x and wy == Mouse.hover.y)
 
@@ -121,18 +139,29 @@ end
 function Board:toWorld(sx, sy)
     local wx = sx + self.camera.x
     local wy = sy + self.camera.y
-    if self.state.storage[wx] and self.state.storage[wx][wy] then
+    -- Check against the global grid bounds instead of the handle
+    if wx >= 1 and wx <= GRID_COUNT and wy >= 1 and wy <= GRID_COUNT then
         return wx, wy
     end
     return nil
 end
-
-function Board:moveCamera(dx, dy, viewW, viewH)
+-- old moveCamera retained for reference
+function Board:_old_bad_moveCamera(dx, dy, viewW, viewH)
     -- Total map size - visible area
     local maxCamX = #self.state.storage - viewW
     local maxCamY = #self.state.storage[1] - viewH
 
     -- Clamp between 0 and Max to protect the "ghost"
+    self.camera.x = math.max(0, math.min(self.camera.x + dx, maxCamX))
+    self.camera.y = math.max(0, math.min(self.camera.y + dy, maxCamY))
+end
+
+-- new correct implementation
+function Board:moveCamera(dx, dy, viewW, viewH)
+    -- Use GRID_COUNT instead of #self.state.storage
+    local maxCamX = GRID_COUNT - viewW
+    local maxCamY = GRID_COUNT - viewH
+
     self.camera.x = math.max(0, math.min(self.camera.x + dx, maxCamX))
     self.camera.y = math.max(0, math.min(self.camera.y + dy, maxCamY))
 end
