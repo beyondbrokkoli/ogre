@@ -1,12 +1,9 @@
 require("global")
-require("display/board")
 require("display/interface")
+require("display/board")
+require("display/mouse")
 require("game/setup")
-
 local resize, B
-
-local standard = Map:new(GRID_COUNT, GRID_COUNT) -- Using your industrial Map class
-standard:set({x=1, y=1}, {type="text", val="Hello, World"})
 
 function CalculateTextBounds(text)
     local width = UI_FONT:getWidth(text)
@@ -18,7 +15,18 @@ end
 function love.load()
     local x, y = love.graphics.getDimensions()
     local bdim = Layout(x, y, love.window.getFullscreen())
-    B = Board:new(standard)
+    -- not quite there but its a starr
+
+    Data_Init("terrain", GRID_COUNT, GRID_COUNT)
+    Data_Init("actors", GRID_COUNT, GRID_COUNT)
+    Data_Init("hello", GRID_COUNT, GRID_COUNT)
+    -- Now you can safely use your Map handles
+    local terrainMap = Map:new("terrain")
+    local actorMap = Map:new("actors")
+    local helloWorld = Map:new("hello") -- Explicitly assign a layer
+    helloWorld:set({x=1, y=1}, {type="text", val="Hello, World"})
+
+    B = Board:new(helloWorld)
     B:init(bdim)
     -- Define these inside love.load to avoid globals
     UI_FONT = UI_FONT or love.graphics.newFont(12)
@@ -66,7 +74,6 @@ function love.keypressed(key)
     if key == "right" then B:moveCamera( 1, 0, vw, vh) end
 end
 
--- Add this to your main.lua
 function love.mousepressed(x, y, button)
     Mouse:pressed(B, x, y, button)
 end
