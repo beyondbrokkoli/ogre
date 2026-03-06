@@ -1,26 +1,27 @@
+-- display/board.lua
 require("display/graphics")
 require("global")
 
 Board = {}
 
-function Board:new(pos)
+function Board:new(gameState)
     local d = {
-        settings = { style = 1, color = 2 },
-        view = { x = 1, y = 1 },
-        isFlipped = false,
-        sprites = {},
-        grid = nil
+        state = gameState,
+        camera = {x = 0, y = 0}
     }
     setmetatable(d, {__index = Board})
     return d
 end
 
+-- In Board:init (display/board.lua)
 function Board:init(t)
     self.bX, self.bY = t.ox, t.oy
-    self.squareSize = math.floor(t.size / GRID_WIDTH + 0.5)
+    -- Use a global or a passed-in constant for the viewport max size
+    local viewMax = 10
+    self.squareSize = math.floor(t.size / viewMax)
 
-    -- Pre-calculate coordinates once, refresh only on resize/zoom
-    self.grid = GridMap(self.squareSize)
+    -- GridMap needs to know how many slots to pre-calculate
+    self.grid = GridMap(viewMax, viewMax, self.squareSize)
     self:loadAssets("assets")
 end
 
@@ -35,33 +36,103 @@ function Board:loadAssets(path)
     end
 end
 
-function Board:draw(gameState)
-    for x, col in pairs(gameState) do
-        for y, sprite in pairs(col) do
-            if sprite then
-                self:drawSprite(sprite, x, y)
+--- RENDERING ---
+
+function Board:drawView(viewW, viewH)
+    for x = 1, viewW do
+        local mapX = x + self.camera.x
+        local column = self.state.storage[mapX]
+
+        if column then
+            for y = 1, viewH do
+                local mapY = y + self.camera.y
+                local cellData = column[mapY]
+
+                if cellData then
+                    -- Efficiency: Pass mapX/Y directly to avoid re-calculation
+                    self:drawCellHighlight(x, y, mapX, mapY)
+                    self:drawItem(cellData, x, y)
+                end
             end
         end
     end
 end
 
-function Board:drawSprite(name, x, y)
-    -- Handle flip logic for the viewport
-    local rx = self.isFlipped and (GRID_WIDTH - x + 1) or x
-    local ry = self.isFlipped and (GRID_HEIGHT - y + 1) or y
+function Board:drawItem(obj, x, y)
+    local cell = self.grid.storage[x][y]
+    if not cell then return end -- Safety rail for dynamic resizing
 
-    local cell = self.grid[rx][ry]
-    local img = self.sprites[name]
+    if obj.type == "text" then
+        love.graphics.print(obj.val, math.floor(self.bX + cell.tx), math.floor(self.bY + cell.cy))
+    elseif self.sprites[obj.type] then
+        local img = self.sprites[obj.type]
+        local drawX = math.floor(self.bX + cell.cx)
+        local drawY = math.floor(self.bY + cell.cy)
+        local ox = math.floor(img:getWidth() / 2)
+        local oy = math.floor(img:getHeight() / 2)
 
-    if img then
-        -- Industrial direct-draw using pre-calculated anchors
-        love.graphics.draw(img, self.bX + cell.cx, self.bY + cell.cy, 0, 1, 1, img:getWidth()/2, img:getHeight()/2)
+        love.graphics.draw(img, drawX, drawY, 0, 1, 1, ox, oy)
     end
 end
+
+-- old drawCellHighlight retained for reference, smileyface
+function Board:old_drawCellHighlight(sx, sy, wx, wy)
+    local cell = self.state.storage[wx][wy]
+    if cell and cell.active then
+        local dX = math.floor(self.bX + (sx - 1) * self.squareSize)
+        local dY = math.floor(self.bY + (sy - 1) * self.squareSize)
+
+        love.graphics.setColor(0.2, 0.6, 1, 0.5) -- Industrial Blue
+        love.graphics.rectangle("fill", dX, dY, self.squareSize, self.squareSize)
+        love.graphics.setColor(1, 1, 1, 1) -- Reset
+    end
+end
+-- In display/board.lua
+
+function Board:drawCellHighlight(sx, sy, wx, wy)
+    local cell = self.state.storage[wx][wy]
+
+    -- 1. Check if the mouse is currently hovering over THIS world tile
+    local isHovered = (wx == Mouse.hover.x and wy == Mouse.hover.y)
+
+    -- 2. Draw if active OR hovered
+    if (cell and cell.active) or isHovered then
+        local dX = math.floor(self.bX + (sx - 1) * self.squareSize)
+        local dY = math.floor(self.bY + (sy - 1) * self.squareSize)
+
+        if isHovered and not (cell and cell.active) then
+            love.graphics.setColor(1, 1, 1, 0.2) -- Subtle white for hover
+        else
+            love.graphics.setColor(0.2, 0.6, 1, 0.5) -- Industrial Blue for active
+        end
+
+        love.graphics.rectangle("fill", dX, dY, self.squareSize, self.squareSize)
+        love.graphics.setColor(1, 1, 1, 1) -- Always reset!
+    end
+end
+--- LOGIC & COORDINATES ---
 
 function Board:screenToGrid(mX, mY)
     local x = math.floor((mX - self.bX) / self.squareSize) + 1
     local y = math.floor((mY - self.bY) / self.squareSize) + 1
-    -- Apply flip inverse if needed
-    return self.isFlipped and (GRID_WIDTH - x + 1) or x, self.isFlipped and (GRID_HEIGHT - y + 1) or y
+    return x, y
+end
+
+function Board:toWorld(sx, sy)
+    local wx = sx + self.camera.x
+    local wy = sy + self.camera.y
+    if self.state.storage[wx] and self.state.storage[wx][wy] then
+        return wx, wy
+    end
+    return nil
+end
+
+function Board:moveCamera(dx, dy, viewW, viewH)
+    -- Total map size - visible area
+    local maxCamX = #self.state.storage - viewW
+    local maxCamY = #self.state.storage[1] - viewH
+
+    -- Clamp between 0 and Max to protect the "ghost"
+    self.camera.x = math.max(0, math.min(self.camera.x + dx, maxCamX))
+    self.camera.y = math.max(0, math.min(self.camera.y + dy, maxCamY))
 end
