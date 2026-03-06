@@ -1,16 +1,14 @@
-require("global")
-
--- One mapper to rule them all.
-function GridMap(square)
-    local m = Map:new(GRID_WIDTH, GRID_HEIGHT)
-    local half = square / 2
-    for x = 1, GRID_WIDTH do
-        for y = 1, GRID_HEIGHT do
-            m[x][y] = {
-                -- Pre-calculated anchors
-                cx = (x - 1) * square + half, -- Center X
-                cy = (y - 1) * square + half, -- Center Y
-                tx = (x - 1) * square + 4,    -- Top-left (with 4px padding) for Font
+-- graphics.lua (new)
+function GridMap(width, height, square)
+    local m = Map:new(width, height)
+    local half = math.floor(square / 2) -- Snap to integer
+    for x = 1, width do
+        for y = 1, height do
+            m.storage[x][y] = {
+                -- Force integers: no more sub-pixel bleeding
+                cx = math.floor((x - 1) * square) + half,
+                cy = math.floor((y - 1) * square) + half,
+                tx = math.floor((x - 1) * square) + 4
             }
         end
     end
