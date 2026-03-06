@@ -1,4 +1,5 @@
 require("display/graphics")
+require("game/repository")
 -- make UI_FONT a global variable
 UI_FONT = love.graphics.newFont(12)
 -- Industrial Grade Display Engine
@@ -54,24 +55,22 @@ function loc:moveFast(dir, target)
     return false
 end
 
--- 2. The Updated Map Class
+-- The "Industrial" Factory Pattern
 Map = {}
--- Refactored Map:new
-function Map:new(w, h, insert)
-    -- Instead of creating 'self.storage', we ensure the repository is ready
-    Data_Init(w, h)
-    -- Return an empty object (no need to store anything)
-    return setmetatable({}, {__index = Map})
+function Map:new(name)
+    -- This object holds NOTHING.
+    -- It just provides the 'Map' methods.
+    return setmetatable({name = name}, {__index = Map})
 end
 
--- Refactored Map:get
+-- Now, every Map:get() points to the SAME repository
 function Map:get(loc)
-    return Data_Get(loc.x, loc.y)
+    return Data_Get(self.name, loc.x, loc.y)
 end
 
--- Refactored Map:set
+-- Refactored Map:set, connecting the dots
 function Map:set(loc, val)
-    Data_Set(loc.x, loc.y, val)
+    Data_Set(self.name, loc.x, loc.y, val)
 end
 
 function vision(map, l, dir, callback)
@@ -97,14 +96,14 @@ function doAcross(w, h, pos, f)
 end
 
 -- The Pathfinder loop (Fast)
-function FindPath(start_x, start_y, direction)
+function FindPath(layer_name, start_x, start_y, direction)
     local current = loc:new(start_x, start_y)
 
     -- Fast Path: Move around using the 'loc' math logic
     if current:moveFast(direction, CALC_BUF) then
 
         -- Safe Path: Only when we land, we ask the Repository
-        local cell = Data_Get(CALC_BUF.x, CALC_BUF.y)
+        local cell = Data_Get(layer_name, CALC_BUF.x, CALC_BUF.y)
 
         if cell and cell.type ~= "wall" then
             return true -- Valid move!
