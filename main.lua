@@ -30,7 +30,8 @@ function love.load()
     local terrainMap = Map:new("terrain")
     local actorMap = Map:new("actors")
     local helloWorld = Map:new("hello") -- Explicitly assign a layer
-    helloWorld:set({x=1, y=1}, {type="text", val="Hello, World"})
+    -- not writing Hello, World
+    --helloWorld:set({x=1, y=1}, {type="text", val="Hello, World"})
 
     B = Board:new(helloWorld)
     B:init(bdim)
@@ -73,11 +74,13 @@ function love.update(dt)
 end
 
 function love.resize(x, y) resize = 0 end
+
 function love.keypressed(key)
     if keyTimers[key] then -- Only process keys we track
         moveCameraFromKey(key)
         keyTimers[key] = 0 -- Optional: instant reset on new press
     end
+    if key == "escape" then love.event.quit() end
 end
 
 function love.mousepressed(x, y, button)
