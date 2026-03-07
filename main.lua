@@ -15,11 +15,11 @@ end
 function love.load()
     local x, y = love.graphics.getDimensions()
     local bdim = Layout(x, y, love.window.getFullscreen())
-    -- not quite there but its a starr
-
-    Data_Init("terrain", GRID_COUNT, GRID_COUNT)
-    Data_Init("actors", GRID_COUNT, GRID_COUNT)
-    Data_Init("hello", GRID_COUNT, GRID_COUNT)
+    -- not quite there but its a start
+    local gc = GRID_COUNT
+    Data_Init("terrain", gc, gc)
+    Data_Init("actors", gc, gc)
+    Data_Init("hello", gc, gc)
     -- Now you can safely use your Map handles
     local terrainMap = Map:new("terrain")
     local actorMap = Map:new("actors")
@@ -38,7 +38,7 @@ function love.draw()
 
     -- Define your viewport dimensions (e.g., 8x8 or 10x10)
     -- This determines how many tiles are visible on screen.
-    local vw, vh = GRID_COUNT, GRID_COUNT
+    local vw, vh = VIEW_W, VIEW_H
 
     -- 1. Draw everything (Highlights, Sprites, and Text)
     -- This uses the camera-aware mapX/mapY logic we perfected.
@@ -65,13 +65,16 @@ end
 function love.resize(x, y) resize = 0 end
 
 function love.keypressed(key)
-    -- viewW and viewH should be the same ones used in Board:draw
-    local vw, vh = 10, 10
+    local dx, dy = 0, 0
+    if key == "up"    then dy = -1
+    elseif key == "down"  then dy = 1
+    elseif key == "left"  then dx = -1
+    elseif key == "right" then dx = 1
+    end
 
-    if key == "up"    then B:moveCamera(0, -1, vw, vh) end
-    if key == "down"  then B:moveCamera(0,  1, vw, vh) end
-    if key == "left"  then B:moveCamera(-1, 0, vw, vh) end
-    if key == "right" then B:moveCamera( 1, 0, vw, vh) end
+    if dx ~= 0 or dy ~= 0 then
+        B:moveCamera(dx, dy)
+    end
 end
 
 function love.mousepressed(x, y, button)
