@@ -11,3 +11,10 @@ function AuditData(data, path)
         end
     end
 end
+-- another approach making it even stronger
+-- game/setup.lua
+function AuditSystem()
+    -- Directly audit the 'terrain' grid stored in the Repository
+    if not STATE.grids["terrain"] then error("Terrain Grid not initialized!") end
+    AuditData(STATE.grids["terrain"], "STATE.grids.terrain")
+end
