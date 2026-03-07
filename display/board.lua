@@ -5,23 +5,17 @@ require("global")
 Board = {}
 
 function Board:new(gameState)
-    local d = {
+    return setmetatable({
         state = gameState,
         camera = {x = 0, y = 0}
-    }
-    setmetatable(d, {__index = Board})
-    return d
+    }, {__index = Board})
 end
 
--- In Board:init (display/board.lua)
 function Board:init(t)
     self.bX, self.bY = t.ox, t.oy
-    -- Use a global or a passed-in constant for the viewport max size
-    local viewMax = 10
-    self.squareSize = math.floor(t.size / viewMax)
-
-    -- GridMap needs to know how many slots to pre-calculate
-    self.grid = GridMap(viewMax, viewMax, self.squareSize)
+    -- Sync grid cache with the global viewport size
+    self.squareSize = math.floor(t.size / VIEW_W)
+    self.grid = GridMap(VIEW_W, VIEW_H, self.squareSize)
     self:loadAssets("assets")
 end
 
@@ -36,16 +30,13 @@ function Board:loadAssets(path)
     end
 end
 
---- RENDERING ---
-
-function Board:drawView(viewW, viewH)
-    for x = 1, viewW do
+function Board:drawView()
+    for x = 1, VIEW_W do
         local mapX = x + self.camera.x
-        for y = 1, viewH do
+        for y = 1, VIEW_H do
             local mapY = y + self.camera.y
-            local cellData = self.state:get( {x = mapX, y = mapY} )
+            local cellData = self.state:get({x = mapX, y = mapY})
             if cellData then
-                -- Efficiency: Pass mapX/Y directly to avoid re-calculation
                 self:drawCellHighlight(x, y, mapX, mapY)
                 self:drawItem(cellData, x, y)
             end
@@ -55,80 +46,29 @@ end
 
 function Board:drawItem(obj, x, y)
     local cell = self.grid.storage[x][y]
-    if not cell then return end -- Safety rail for dynamic resizing
+    if not cell then return end
 
     if obj.type == "text" then
         love.graphics.print(obj.val, math.floor(self.bX + cell.tx), math.floor(self.bY + cell.cy))
     elseif self.sprites[obj.type] then
         local img = self.sprites[obj.type]
-        local drawX = math.floor(self.bX + cell.cx)
-        local drawY = math.floor(self.bY + cell.cy)
-        local ox = math.floor(img:getWidth() / 2)
-        local oy = math.floor(img:getHeight() / 2)
-
-        love.graphics.draw(img, drawX, drawY, 0, 1, 1, ox, oy)
-    end
-end
-
--- old drawCellHighlight retained for reference, smileyface
-function Board:old_drawCellHighlight(sx, sy, wx, wy)
-    local cell = self.state.storage[wx][wy]
-    if cell and cell.active then
-        local dX = math.floor(self.bX + (sx - 1) * self.squareSize)
-        local dY = math.floor(self.bY + (sy - 1) * self.squareSize)
-
-        love.graphics.setColor(0.2, 0.6, 1, 0.5) -- Industrial Blue
-        love.graphics.rectangle("fill", dX, dY, self.squareSize, self.squareSize)
-        love.graphics.setColor(1, 1, 1, 1) -- Reset
-    end
-end
-
--- a bit newer drawCellHighlight retained for reference
-function Board:not_quite_there_drawCellHighlight(sx, sy, wx, wy)
-    local cell = self.state.storage[wx][wy]
-
-    -- 1. Check if the mouse is currently hovering over THIS world tile
-    local isHovered = (wx == Mouse.hover.x and wy == Mouse.hover.y)
-
-    -- 2. Draw if active OR hovered
-    if (cell and cell.active) or isHovered then
-        local dX = math.floor(self.bX + (sx - 1) * self.squareSize)
-        local dY = math.floor(self.bY + (sy - 1) * self.squareSize)
-
-        if isHovered and not (cell and cell.active) then
-            love.graphics.setColor(1, 1, 1, 0.2) -- Subtle white for hover
-        else
-            love.graphics.setColor(0.2, 0.6, 1, 0.5) -- Industrial Blue for active
-        end
-
-        love.graphics.rectangle("fill", dX, dY, self.squareSize, self.squareSize)
-        love.graphics.setColor(1, 1, 1, 1) -- Always reset!
+        love.graphics.draw(img, math.floor(self.bX + cell.cx), math.floor(self.bY + cell.cy), 0, 1, 1, math.floor(img:getWidth()/2), math.floor(img:getHeight()/2))
     end
 end
 
 function Board:drawCellHighlight(sx, sy, wx, wy)
-    -- Use the handle to get the cell
     local cell = self.state:get({x = wx, y = wy})
-    -- ... rest of your logic
-    -- 1. Check if the mouse is currently hovering over THIS world tile
     local isHovered = (wx == Mouse.hover.x and wy == Mouse.hover.y)
 
-    -- 2. Draw if active OR hovered
     if (cell and cell.active) or isHovered then
         local dX = math.floor(self.bX + (sx - 1) * self.squareSize)
         local dY = math.floor(self.bY + (sy - 1) * self.squareSize)
 
-        if isHovered and not (cell and cell.active) then
-            love.graphics.setColor(1, 1, 1, 0.2) -- Subtle white for hover
-        else
-            love.graphics.setColor(0.2, 0.6, 1, 0.5) -- Industrial Blue for active
-        end
-
+        love.graphics.setColor(isHovered and not cell.active and {1,1,1,0.2} or {0.2,0.6,1,0.5})
         love.graphics.rectangle("fill", dX, dY, self.squareSize, self.squareSize)
-        love.graphics.setColor(1, 1, 1, 1) -- Always reset!
+        love.graphics.setColor(1, 1, 1, 1)
     end
 end
---- LOGIC & COORDINATES ---
 
 function Board:screenToGrid(mX, mY)
     local x = math.floor((mX - self.bX) / self.squareSize) + 1
@@ -137,31 +77,15 @@ function Board:screenToGrid(mX, mY)
 end
 
 function Board:toWorld(sx, sy)
-    local wx = sx + self.camera.x
-    local wy = sy + self.camera.y
-    -- Check against the global grid bounds instead of the handle
+    local wx, wy = sx + self.camera.x, sy + self.camera.y
     if wx >= 1 and wx <= GRID_COUNT and wy >= 1 and wy <= GRID_COUNT then
         return wx, wy
     end
-    return nil
-end
--- old moveCamera retained for reference
-function Board:_old_bad_moveCamera(dx, dy, viewW, viewH)
-    -- Total map size - visible area
-    local maxCamX = #self.state.storage - viewW
-    local maxCamY = #self.state.storage[1] - viewH
-
-    -- Clamp between 0 and Max to protect the "ghost"
-    self.camera.x = math.max(0, math.min(self.camera.x + dx, maxCamX))
-    self.camera.y = math.max(0, math.min(self.camera.y + dy, maxCamY))
 end
 
--- new correct implementation
-function Board:moveCamera(dx, dy, viewW, viewH)
-    -- Use GRID_COUNT instead of #self.state.storage
-    local maxCamX = GRID_COUNT - viewW
-    local maxCamY = GRID_COUNT - viewH
-
+function Board:moveCamera(dx, dy)
+    local maxCamX = GRID_COUNT - VIEW_W
+    local maxCamY = GRID_COUNT - VIEW_H
     self.camera.x = math.max(0, math.min(self.camera.x + dx, maxCamX))
     self.camera.y = math.max(0, math.min(self.camera.y + dy, maxCamY))
 end
