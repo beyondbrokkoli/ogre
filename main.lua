@@ -3,7 +3,13 @@ require("display/interface")
 require("display/board")
 require("display/mouse")
 require("game/setup")
-local resize, B
+local resize
+local B
+
+-- In main.lua, initialize a timer map
+local keyTimers = { left = 0, right = 0, up = 0, down = 0 }
+local delay = 0.3 -- Initial pause
+local repeatRate = 0.05 -- Repeat interval
 
 function CalculateTextBounds(text)
     local width = UI_FONT:getWidth(text)
@@ -49,34 +55,50 @@ function love.draw()
 end
 
 function love.update(dt)
-    if not resize then
-        Mouse:update(B) -- Keep the mouse in sync with the board
-    else
-        -- ... existing resize logic
+    -- 1. Input Handling (Always safe)
+    handleCameraInput(dt)
+
+    -- 2. Resize Logic (The "Cool Down" period)
+    if resize then
         resize = resize + dt
         if resize > 0.5 then
             resize = false
-            local x, y = love.graphics.getDimensions()
-            B:init(Layout(x, y, love.window.getFullscreen()))
+            local w, h = love.graphics.getDimensions()
+            B:init(Layout(w, h, love.window.getFullscreen()))
         end
+    -- 3. Only sync Mouse if the board is stable
+    else
+        Mouse:update(B)
     end
 end
 
 function love.resize(x, y) resize = 0 end
-
 function love.keypressed(key)
-    local dx, dy = 0, 0
-    if key == "up"    then dy = -1
-    elseif key == "down"  then dy = 1
-    elseif key == "left"  then dx = -1
-    elseif key == "right" then dx = 1
-    end
-
-    if dx ~= 0 or dy ~= 0 then
-        B:moveCamera(dx, dy)
+    if keyTimers[key] then -- Only process keys we track
+        moveCameraFromKey(key)
+        keyTimers[key] = 0 -- Optional: instant reset on new press
     end
 end
 
 function love.mousepressed(x, y, button)
     Mouse:pressed(B, x, y, button)
+end
+function moveCameraFromKey(key)
+    local dirs = {up={0,-1}, down={0,1}, left={-1,0}, right={1,0}}
+    local d = dirs[key]
+    if d then B:moveCamera(d[1], d[2]) end
+end
+
+function handleCameraInput(dt)
+    for key, _ in pairs(keyTimers) do
+        if love.keyboard.isDown(key) then
+            keyTimers[key] = keyTimers[key] + dt
+            if keyTimers[key] > delay then
+                moveCameraFromKey(key)
+                keyTimers[key] = delay - repeatRate
+            end
+        else
+            keyTimers[key] = 0
+        end
+    end
 end
