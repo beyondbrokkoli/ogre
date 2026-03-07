@@ -64,9 +64,17 @@ function Board:drawCellHighlight(sx, sy, wx, wy)
         local dX = math.floor(self.bX + (sx - 1) * self.squareSize)
         local dY = math.floor(self.bY + (sy - 1) * self.squareSize)
 
-        love.graphics.setColor(isHovered and not cell.active and {1,1,1,0.2} or {0.2,0.6,1,0.5})
+        -- Clear decision logic
+        local r, g, b, a = 0.2, 0.6, 1, 0.5 -- Default: Active Blue
+        if isHovered and not (cell and cell.active) then
+            r, g, b, a = 1, 1, 1, 0.2      -- Hover only (White)
+        elseif isHovered and (cell and cell.active) then
+            r, g, b, a = 0.5, 0.8, 1, 0.8  -- Hover over Active (Bright)
+        end
+
+        love.graphics.setColor(r, g, b, a)
         love.graphics.rectangle("fill", dX, dY, self.squareSize, self.squareSize)
-        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.setColor(1, 1, 1, 1) -- Reset
     end
 end
 
