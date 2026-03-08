@@ -1,4 +1,4 @@
-Step 1: Download OgreEngine.zip (release v1)
+Step 1: Download OgreEngine.zip (Releases)
 
 Step 2: Unpack Zip-Archive
 
