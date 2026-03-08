@@ -1,4 +1,3 @@
-require("display/graphics")
 require("game/repository")
 -- make UI_FONT a global variable
 UI_FONT = love.graphics.newFont(12)
