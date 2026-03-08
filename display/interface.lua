@@ -1,6 +1,10 @@
-function Layout(x, y, f)
-    local size = math.min(x, y)
-    local ox = math.floor((x - size) / 2 + 0.5)
-    local oy = math.floor((y - size) / 2 + 0.5)
-    return { size = size, ox = ox, oy = oy }
+-- display/interface.lua (The "Future-Proof" version)
+function Layout(w, h)
+    local sidebarWidth = 0
+    return {
+        sizeW = w - sidebarWidth, -- The board only gets the remaining width
+        sizeH = h,
+        ox = sidebarWidth,        -- The board starts 200px in from the left
+        oy = 0
+    }
 end
