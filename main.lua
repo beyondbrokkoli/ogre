@@ -45,11 +45,13 @@ function love.draw()
 
     -- Define your viewport dimensions (e.g., 8x8 or 10x10)
     -- This determines how many tiles are visible on screen.
-    local vw, vh = VIEW_W, VIEW_H
+    -- removing this because its no longer needed
+    -- local vw, vh = VIEW_W, VIEW_H
 
     -- 1. Draw everything (Highlights, Sprites, and Text)
     -- This uses the camera-aware mapX/mapY logic we perfected.
-    B:drawView(vw, vh)
+    -- no longer needs any arguments
+    B:drawView()
 
     -- 2. Optional: Draw UI elements on top that don't move with the camera
     -- love.graphics.print("Camera Pos: "..B.camera.x..","..B.camera.y, 10, 10)
