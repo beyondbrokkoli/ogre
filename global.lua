@@ -3,7 +3,7 @@ require("game/repository")
 UI_FONT = love.graphics.newFont(12)
 -- Industrial Grade Display Engine
 GRID_COUNT = 128 -- Massive world
-VIEW_W, VIEW_H = 20, 20 -- Visible tiles
+
 -- In global.lua or a dedicated "calc" module
 CALC_BUF = {x=0, y=0}
 
